@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function profile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function staff() { return signedIn() && profile().active == true && profile().role in ['owner','staff']; }
+    function owner() { return staff() && profile().role == 'owner'; }
+    function validProduct(m) { return m.keys().hasAll(['name','category','unit','price','cost','stock','reorderLevel','active']) && m.name is string && m.name.size()>0 && m.price is number && m.price>=0 && m.cost is number && m.cost>=0 && m.stock is int && m.stock>=0 && m.reorderLevel is int && m.reorderLevel>=0; }
+    match /users/{id} {
+      allow read: if staff() && (request.auth.uid == id || owner());
+      allow write: if false; // Bootstrap and manage users using Firebase Admin SDK / console.
+    }
+    match /products/{id} {
+      allow read: if staff();
+      allow create: if owner() && validProduct(request.resource.data);
+      allow update: if staff() && validProduct(request.resource.data) && (owner() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock','updatedAt']));
+      allow delete: if false;
+    }
+    match /sales/{id} {
+      allow read: if staff();
+      allow create: if staff() && request.resource.data.cashierId == request.auth.uid && request.resource.data.total is number && request.resource.data.total >= 0 && request.resource.data.cost is number && request.resource.data.amountPaid >= request.resource.data.total && request.resource.data.items is list && request.resource.data.items.size()>0;
+      allow update,delete: if false;
+    }
+    match /expenses/{id} {
+      allow read: if staff();
+      allow create: if owner() && request.resource.data.createdBy == request.auth.uid && request.resource.data.amount is number && request.resource.data.amount>0;
+      allow update,delete: if false;
+    }
+    match /stock_movements/{id} {
+      allow read: if staff();
+      allow create: if staff() && request.resource.data.userId == request.auth.uid && request.resource.data.delta is int && request.resource.data.reason is string;
+      allow update,delete: if false;
+    }
+  }
+}
