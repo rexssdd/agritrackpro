@@ -11,12 +11,31 @@ class ExpensesView extends StatelessWidget {
     final description = TextEditingController(),
         amount = TextEditingController();
     String category = 'Operating';
+    DateTime expenseDate = DateTime.now();
     final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => StatefulBuilder(
             builder: (ctx, set) => AlertDialog(
                     title: const Text('Record expense'),
-                    content: Column(mainAxisSize: MainAxisSize.min, children: [
+                    content: SingleChildScrollView(
+                        child:
+                            Column(mainAxisSize: MainAxisSize.min, children: [
+                      ListTile(
+                        title: const Text('Expense date'),
+                        subtitle: Text(
+                            '${expenseDate.year}-${expenseDate.month.toString().padLeft(2, '0')}-${expenseDate.day.toString().padLeft(2, '0')}'),
+                        trailing: const Icon(Icons.calendar_today),
+                        onTap: () async {
+                          final chosen = await showDatePicker(
+                              context: ctx,
+                              initialDate: expenseDate,
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime.now());
+                          if (chosen != null && ctx.mounted) {
+                            set(() => expenseDate = chosen);
+                          }
+                        },
+                      ),
                       TextField(
                           controller: description,
                           decoration:
@@ -41,7 +60,7 @@ class ExpensesView extends StatelessWidget {
                                   DropdownMenuItem(value: v, child: Text(v)))
                               .toList(),
                           onChanged: (v) => set(() => category = v!))
-                    ]),
+                    ])),
                     actions: [
                       TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
@@ -50,12 +69,20 @@ class ExpensesView extends StatelessWidget {
                           onPressed: () => Navigator.pop(ctx, true),
                           child: const Text('Save'))
                     ])));
-    if (ok != true) return;
+    if (ok != true) {
+      description.dispose();
+      amount.dispose();
+      return;
+    }
     try {
       await repo.addExpense(
-          description.text, category, double.parse(amount.text));
+          description.text, category, double.parse(amount.text),
+          expenseDate: expenseDate);
     } catch (e) {
       if (context.mounted) errorMessage(context, e);
+    } finally {
+      description.dispose();
+      amount.dispose();
     }
   }
 

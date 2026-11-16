@@ -2,97 +2,31 @@ import 'package:flutter/material.dart';
 import '../models/entities.dart';
 import '../services/store_repository.dart';
 import '../widgets/common.dart';
+import '../widgets/product_form_dialog.dart';
+import '../widgets/product_image_placeholder.dart';
 
 class InventoryView extends StatefulWidget {
   final StoreRepository repo;
   final bool isOwner;
-  const InventoryView({super.key, required this.repo, required this.isOwner});
+  final bool canEditProducts;
+  const InventoryView(
+      {super.key,
+      required this.repo,
+      required this.isOwner,
+      this.canEditProducts = false});
   @override
   State<InventoryView> createState() => _InventoryViewState();
 }
 
 class _InventoryViewState extends State<InventoryView> {
   String search = '';
+  bool lowStockOnly = false;
   Future<void> edit(Product? old) async {
-    final name = TextEditingController(text: old?.name ?? ''),
-        category = TextEditingController(text: old?.category ?? 'Chemical'),
-        unit = TextEditingController(text: old?.unit ?? 'bottle'),
-        price = TextEditingController(text: old?.price.toString() ?? ''),
-        cost = TextEditingController(text: old?.cost.toString() ?? ''),
-        stock = TextEditingController(text: old?.stock.toString() ?? '0'),
-        reorder =
-            TextEditingController(text: old?.reorderLevel.toString() ?? '5');
-    final form = GlobalKey<FormState>();
-    final ok = await showDialog<bool>(
+    await showDialog<void>(
         context: context,
-        builder: (ctx) => AlertDialog(
-                title: Text(old == null ? 'Add product' : 'Edit product'),
-                content: SizedBox(
-                    width: 400,
-                    child: Form(
-                        key: form,
-                        child: SingleChildScrollView(
-                            child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                              for (final f in <(String, TextEditingController)>[
-                                ('Name', name),
-                                ('Category', category),
-                                ('Unit', unit),
-                                ('Selling price', price),
-                                ('Purchase cost', cost),
-                                if (old == null) ('Initial stock', stock),
-                                ('Reorder level', reorder)
-                              ])
-                                Padding(
-                                    padding: const EdgeInsets.only(bottom: 10),
-                                    child: TextFormField(
-                                        controller: f.$2,
-                                        keyboardType: [
-                                          'Selling price',
-                                          'Purchase cost',
-                                          'Initial stock',
-                                          'Reorder level'
-                                        ].contains(f.$1)
-                                            ? TextInputType.number
-                                            : TextInputType.text,
-                                        decoration:
-                                            InputDecoration(labelText: f.$1),
-                                        validator: (v) =>
-                                            v == null || v.trim().isEmpty
-                                                ? 'Required'
-                                                : null))
-                            ])))),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Cancel')),
-                  FilledButton(
-                      onPressed: () {
-                        if (form.currentState!.validate()) {
-                          Navigator.pop(ctx, true);
-                        }
-                      },
-                      child: const Text('Save'))
-                ]));
-    if (ok != true) return;
-    try {
-      final pr = double.parse(price.text),
-          co = double.parse(cost.text),
-          st = int.parse(stock.text),
-          re = int.parse(reorder.text);
-      await widget.repo.saveProduct(Product(
-          id: old?.id ?? '',
-          name: name.text.trim(),
-          category: category.text.trim(),
-          unit: unit.text.trim(),
-          price: pr,
-          cost: co,
-          stock: st,
-          reorderLevel: re));
-    } catch (e) {
-      if (mounted) errorMessage(context, e);
-    }
+        barrierDismissible: false,
+        builder: (_) => ProductFormDialog(
+            repo: widget.repo, product: old, canEditCost: widget.isOwner));
   }
 
   Future<void> adjust(Product p) async {
@@ -145,16 +79,17 @@ class _InventoryViewState extends State<InventoryView> {
         final products = s.data!
             .where((p) =>
                 p.active &&
+                (!lowStockOnly || p.stock <= p.reorderLevel) &&
                 ('${p.name} ${p.category}')
                     .toLowerCase()
                     .contains(search.toLowerCase()))
             .toList();
         return Scaffold(
-            floatingActionButton: widget.isOwner
+            floatingActionButton: widget.isOwner || widget.canEditProducts
                 ? FloatingActionButton.extended(
                     onPressed: () => edit(null),
                     icon: const Icon(Icons.add),
-                    label: const Text('Product'))
+                    label: const Text('Add product'))
                 : null,
             body: ListView(padding: const EdgeInsets.all(16), children: [
               Text('Inventory',
@@ -169,15 +104,20 @@ class _InventoryViewState extends State<InventoryView> {
                       prefixIcon: Icon(Icons.search),
                       hintText: 'Search chemicals, fertilizers…')),
               const SizedBox(height: 12),
+              FilterChip(
+                  label: const Text('Needs replenishment'),
+                  selected: lowStockOnly,
+                  onSelected: (value) => setState(() => lowStockOnly = value)),
               ...products.map((p) => Card(
                   child: Padding(
                       padding: const EdgeInsets.all(8),
                       child: ListTile(
-                          leading: CircleAvatar(
-                              child: Icon(p.stock <= p.reorderLevel
-                                  ? Icons.warning_amber
-                                  : Icons.grass)),
+                          leading: ProductImagePlaceholder(
+                              size: 52, imageBase64: p.imageBase64),
                           title: Text(p.name),
+                          tileColor: p.stock <= p.reorderLevel
+                              ? Colors.orange.withValues(alpha: 0.08)
+                              : null,
                           subtitle: Text(
                               '${p.category} • ${peso(p.price)} / ${p.unit}\nStock: ${p.stock} • Reorder: ${p.reorderLevel}'),
                           isThreeLine: true,
@@ -185,7 +125,8 @@ class _InventoryViewState extends State<InventoryView> {
                               onSelected: (v) =>
                                   v == 'edit' ? edit(p) : adjust(p),
                               itemBuilder: (ctx) => [
-                                    if (widget.isOwner)
+                                    if (widget.isOwner ||
+                                        widget.canEditProducts)
                                       const PopupMenuItem(
                                           value: 'edit',
                                           child: Text('Edit product')),

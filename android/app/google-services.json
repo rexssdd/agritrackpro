@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "830728446252",
+    "project_id": "agritrackpro-73030",
+    "storage_bucket": "agritrackpro-73030.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:830728446252:android:45301eece0bc05ea7c8c89",
+        "android_client_info": {
+          "package_name": "com.example.agritrackpro"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBf4HGnZGtYCuxajMoYLtZMv2Gx02YXx-4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

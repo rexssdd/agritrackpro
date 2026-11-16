@@ -12,6 +12,24 @@ class ReportsView extends StatefulWidget {
 
 class _ReportsViewState extends State<ReportsView> {
   String period = 'This month';
+  DateTime get start {
+    final now = DateTime.now();
+    return switch (period) {
+      'Today' => DateTime(now.year, now.month, now.day),
+      'This year' => DateTime(now.year),
+      _ => DateTime(now.year, now.month),
+    };
+  }
+
+  DateTime get end {
+    final now = DateTime.now();
+    return switch (period) {
+      'Today' => DateTime(now.year, now.month, now.day + 1),
+      'This year' => DateTime(now.year + 1),
+      _ => DateTime(now.year, now.month + 1),
+    };
+  }
+
   bool matches(DateTime d) {
     final now = DateTime.now();
     switch (period) {
@@ -26,10 +44,15 @@ class _ReportsViewState extends State<ReportsView> {
 
   @override
   Widget build(BuildContext context) => StreamBuilder<List<Sale>>(
-      stream: widget.repo.watchSales(),
+      stream: widget.repo.watchSalesForPeriod(start, end),
       builder: (context, s) => StreamBuilder<List<Expense>>(
-          stream: widget.repo.watchExpenses(),
+          stream: widget.repo.watchExpensesForPeriod(start, end),
           builder: (context, e) {
+            if (s.hasError || e.hasError) {
+              return const Center(
+                  child: Text(
+                      'Unable to load financial reports. Check your owner access and connection.'));
+            }
             if (!s.hasData || !e.hasData) {
               return const Center(child: CircularProgressIndicator());
             }
@@ -73,6 +96,10 @@ class _ReportsViewState extends State<ReportsView> {
                         value: peso(spend),
                         icon: Icons.receipt_long),
                     MetricTile(
+                        title: 'Gross profit',
+                        value: peso(revenue - cogs),
+                        icon: Icons.trending_up),
+                    MetricTile(
                         title: 'Estimated net profit',
                         value: peso(profit),
                         icon: Icons.savings)
@@ -99,7 +126,7 @@ class _ReportsViewState extends State<ReportsView> {
               Text('${sales.length} completed transactions',
                   style: Theme.of(context).textTheme.titleMedium),
               const Text(
-                  'Reports use up to 500 latest records per collection. For large stores, use server-side aggregate reports.',
+                  'Estimates use recorded product costs and operating expenses. These figures are not audited financial statements.',
                   style: TextStyle(color: Colors.black54, fontSize: 12))
             ]);
           }));

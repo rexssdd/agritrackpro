@@ -8,11 +8,15 @@ class DashboardView extends StatelessWidget {
   const DashboardView({super.key, required this.repo});
   @override
   Widget build(BuildContext context) => StreamBuilder<List<Sale>>(
-      stream: repo.watchSales(),
+      stream: repo.watchSalesForPeriod(
+          DateTime(DateTime.now().year, DateTime.now().month),
+          DateTime(DateTime.now().year, DateTime.now().month + 1)),
       builder: (context, s) => StreamBuilder<List<Product>>(
           stream: repo.watchProducts(),
           builder: (context, p) => StreamBuilder<List<Expense>>(
-              stream: repo.watchExpenses(),
+              stream: repo.watchExpensesForPeriod(
+                  DateTime(DateTime.now().year, DateTime.now().month),
+                  DateTime(DateTime.now().year, DateTime.now().month + 1)),
               builder: (context, e) {
                 if (s.hasError || p.hasError || e.hasError) {
                   return const Center(child: Text('Unable to load dashboard'));

@@ -1,1 +1,48 @@
-{"firestore":{"rules":"firestore.rules"}}
+{
+    "firestore":  {
+                      "rules":  "firestore.rules"
+                  },
+    "flutter":  {
+                    "platforms":  {
+                                      "android":  {
+                                                      "default":  {
+                                                                      "projectId":  "agritrackpro-73030",
+                                                                      "appId":  "1:830728446252:android:45301eece0bc05ea7c8c89",
+                                                                      "fileOutput":  "android/app/google-services.json"
+                                                                  }
+                                                  },
+                                      "dart":  {
+                                                   "lib/firebase_options.dart":  {
+                                                                                     "projectId":  "agritrackpro-73030",
+                                                                                     "configurations":  {
+                                                                                                            "android":  "1:830728446252:android:45301eece0bc05ea7c8c89",
+                                                                                                            "ios":  "1:830728446252:ios:486d39bf95c3643b7c8c89",
+                                                                                                            "macos":  "1:830728446252:ios:486d39bf95c3643b7c8c89",
+                                                                                                            "web":  "1:830728446252:web:aec2aeccb9e8bcfe7c8c89",
+                                                                                                            "windows":  "1:830728446252:web:ce3c31189dffe36e7c8c89"
+                                                                                                        }
+                                                                                 }
+                                               }
+                                  }
+                },
+    "functions":  [
+                      {
+                          "codebase":  "store",
+                          "source":  "functions"
+                      }
+                  ],
+    "emulators":  {
+                      "functions":  {
+                                        "port":  5001
+                                    },
+                      "firestore":  {
+                                        "port":  8080
+                                    },
+                      "ui":  {
+                                 "enabled":  true
+                             },
+                      "auth":  {
+                                   "port":  9099
+                               }
+                  }
+}
