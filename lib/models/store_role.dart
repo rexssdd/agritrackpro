@@ -14,7 +14,7 @@ enum StoreRole {
 
   bool get canSell => this == owner || this == cashier || this == staff;
   bool get canManageInventory =>
-      this == owner || this == inventory || this == staff;
+      this == owner || this == inventory;
   bool get canEditProducts => this == owner || this == inventory;
   bool get canRecordExpenses => this == owner || this == inventory;
   bool get canViewProfit => this == owner;

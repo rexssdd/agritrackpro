@@ -4,29 +4,70 @@ import '../services/store_repository.dart';
 import '../widgets/common.dart';
 import '../widgets/product_form_dialog.dart';
 import '../widgets/product_image_placeholder.dart';
+import '../widgets/agri_ui.dart';
+import '../config/theme.dart';
 
 class InventoryView extends StatefulWidget {
   final StoreRepository repo;
   final bool isOwner;
   final bool canEditProducts;
+  final bool canAdjustStock;
   const InventoryView(
       {super.key,
       required this.repo,
       required this.isOwner,
-      this.canEditProducts = false});
+      this.canEditProducts = false,
+      this.canAdjustStock = true});
   @override
   State<InventoryView> createState() => _InventoryViewState();
 }
 
 class _InventoryViewState extends State<InventoryView> {
   String search = '';
-  bool lowStockOnly = false;
+  String stockFilter = 'All';
   Future<void> edit(Product? old) async {
     await showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (_) => ProductFormDialog(
             repo: widget.repo, product: old, canEditCost: widget.isOwner));
+  }
+
+  Future<void> archive(Product product) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Archive product?'),
+        content: Text(
+            '${product.name} will no longer appear in the shop or sales checkout.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Archive')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    try {
+      await widget.repo.saveProduct(Product(
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        unit: product.unit,
+        price: product.price,
+        cost: product.cost,
+        stock: product.stock,
+        reorderLevel: product.reorderLevel,
+        description: product.description,
+        imageBase64: product.imageBase64,
+        active: false,
+      ));
+    } catch (error) {
+      if (mounted) errorMessage(context, error);
+    }
   }
 
   Future<void> adjust(Product p) async {
@@ -60,11 +101,29 @@ class _InventoryViewState extends State<InventoryView> {
                           onPressed: () => Navigator.pop(ctx, true),
                           child: const Text('Save'))
                     ])));
-    if (ok != true) return;
+    if (ok != true || !mounted) return;
     try {
       final q = int.parse(amount.text);
       if (q <= 0) throw Exception('Quantity must be positive');
-      await widget.repo.adjustStock(p, add ? q : -q, reason.text);
+      final delta = add ? q : -q;
+      final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+                title: const Text('Preview stock adjustment'),
+                content: Text(
+                    '${add ? 'Add' : 'Deduct'} $q ${p.unit} for ${p.name}\n\nReason: ${reason.text.trim()}\nStock after change: ${p.stock + delta}'),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Back to edit')),
+                  FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Confirm adjustment')),
+                ],
+              ));
+      if (confirmed == true) {
+        await widget.repo.adjustStock(p, delta, reason.text);
+      }
     } catch (e) {
       if (mounted) errorMessage(context, e);
     }
@@ -79,7 +138,11 @@ class _InventoryViewState extends State<InventoryView> {
         final products = s.data!
             .where((p) =>
                 p.active &&
-                (!lowStockOnly || p.stock <= p.reorderLevel) &&
+                (stockFilter == 'All' ||
+                    (stockFilter == 'Low stock' &&
+                        p.stock > 0 &&
+                        p.stock <= p.reorderLevel) ||
+                    (stockFilter == 'Out of stock' && p.stock == 0)) &&
                 ('${p.name} ${p.category}')
                     .toLowerCase()
                     .contains(search.toLowerCase()))
@@ -92,11 +155,11 @@ class _InventoryViewState extends State<InventoryView> {
                     label: const Text('Add product'))
                 : null,
             body: ListView(padding: const EdgeInsets.all(16), children: [
-              Text('Inventory',
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineSmall
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+              const AgriHero(
+                  title: 'Inventory',
+                  subtitle: 'Keep every product and stock level in view',
+                  icon: Icons.inventory_2_outlined,
+                  compact: true),
               const SizedBox(height: 12),
               TextField(
                   onChanged: (v) => setState(() => search = v),
@@ -104,36 +167,69 @@ class _InventoryViewState extends State<InventoryView> {
                       prefixIcon: Icon(Icons.search),
                       hintText: 'Search chemicals, fertilizers…')),
               const SizedBox(height: 12),
-              FilterChip(
-                  label: const Text('Needs replenishment'),
-                  selected: lowStockOnly,
-                  onSelected: (value) => setState(() => lowStockOnly = value)),
+              SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(children: [
+                    for (final filter in const [
+                      'All',
+                      'Low stock',
+                      'Out of stock'
+                    ]) ...[
+                      ChoiceChip(
+                          label: Text(filter),
+                          selected: stockFilter == filter,
+                          onSelected: (_) =>
+                              setState(() => stockFilter = filter)),
+                      const SizedBox(width: 8),
+                    ],
+                  ])),
+              AgriSectionTitle(
+                  stockFilter == 'All' ? 'All products' : stockFilter),
               ...products.map((p) => Card(
                   child: Padding(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(6),
                       child: ListTile(
                           leading: ProductImagePlaceholder(
                               size: 52, imageBase64: p.imageBase64),
-                          title: Text(p.name),
+                          title: Text(p.name,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700)),
                           tileColor: p.stock <= p.reorderLevel
                               ? Colors.orange.withValues(alpha: 0.08)
                               : null,
                           subtitle: Text(
-                              '${p.category} • ${peso(p.price)} / ${p.unit}\nStock: ${p.stock} • Reorder: ${p.reorderLevel}'),
+                              '${p.category}  •  ${peso(p.price)} / ${p.unit}\n${p.stock == 0 ? 'Out of stock' : p.stock <= p.reorderLevel ? 'Low stock' : 'In stock'}: ${p.stock} ${p.unit}  •  Reorder at ${p.reorderLevel}',
+                              style: TextStyle(
+                                  color: p.stock <= p.reorderLevel
+                                      ? const Color(0xFFA66000)
+                                      : AgriTheme.ink)),
                           isThreeLine: true,
-                          trailing: PopupMenuButton<String>(
-                              onSelected: (v) =>
-                                  v == 'edit' ? edit(p) : adjust(p),
-                              itemBuilder: (ctx) => [
-                                    if (widget.isOwner ||
-                                        widget.canEditProducts)
-                                      const PopupMenuItem(
-                                          value: 'edit',
-                                          child: Text('Edit product')),
-                                    const PopupMenuItem(
-                                        value: 'adjust',
-                                        child: Text('Adjust stock'))
-                                  ]))))),
+                          trailing: widget.isOwner ||
+                                  widget.canEditProducts ||
+                                  widget.canAdjustStock
+                              ? PopupMenuButton<String>(
+                                  onSelected: (v) {
+                                    if (v == 'edit') edit(p);
+                                    if (v == 'adjust') adjust(p);
+                                    if (v == 'archive') archive(p);
+                                  },
+                                  itemBuilder: (ctx) => [
+                                        if (widget.isOwner ||
+                                            widget.canEditProducts)
+                                          const PopupMenuItem(
+                                              value: 'edit',
+                                              child: Text('Edit product')),
+                                        if (widget.canAdjustStock)
+                                          const PopupMenuItem(
+                                              value: 'adjust',
+                                              child: Text('Adjust stock')),
+                                        if (widget.isOwner ||
+                                            widget.canEditProducts)
+                                          const PopupMenuItem(
+                                              value: 'archive',
+                                              child: Text('Archive product')),
+                                      ])
+                              : const Icon(Icons.chevron_right))))),
               if (products.isEmpty)
                 const Center(
                     child: Padding(

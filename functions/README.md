@@ -40,7 +40,7 @@ No service account key belongs in the app or this repository.
 | Owner | Dashboard, products and purchase costs, checkout, all receipts, accounts, profit reports, expenses, stock history, seeding and migration |
 | Cashier | Checkout, customer payment references, own receipt history and daily collection totals by payment method |
 | Inventory | Add/edit products without purchase-cost access, restock/deduct stock, movement history, record/view operating expenses |
-| Customer | Approved-account catalog: search, prices, images, descriptions and stock availability; purchase in store |
+| Customer | Approved-account catalog, preorder cart, pickup or cash-on-delivery selection, and cash/GCash payment choice |
 | Staff (legacy) | Checkout, own receipts, stock adjustment and movement history; no costs/profits/accounts |
 
 Inventory-created products require the owner to save their purchase cost before
@@ -86,5 +86,5 @@ stock and audit consistency, payment checks, expense dates, and inventory edits.
 Run `flutter test` for UI tests and `npm.cmd --prefix functions test` for pure
 backend validation tests.
 
-Remaining scope: customer orders, payment gateways, printable/PDF receipts,
+Remaining scope: payment gateway verification, printable/PDF receipts,
 refunds, expiry/batch tracking, tax accounting, and durable offline checkout.

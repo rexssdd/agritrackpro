@@ -70,6 +70,8 @@ void main() {
     expect(find.byType(Image), findsOneWidget);
     await tester.tap(find.text('Save product'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm and save'));
+    await tester.pumpAndSettle();
     expect(repo.saved!.imageBase64, base64Encode(bytes));
     expect(repo.saved!.toMap()['imageBase64'], base64Encode(bytes));
     await open(product(base64Encode(bytes)), () async => null);
@@ -79,6 +81,8 @@ void main() {
     await tester.tap(find.text('Remove photo'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Save product'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm and save'));
     await tester.pumpAndSettle();
     expect(repo.saved!.imageBase64, '');
     await open(

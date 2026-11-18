@@ -1,6 +1,7 @@
 {
   "project_info": {
     "project_number": "830728446252",
+    "firebase_url": "https://agritrackpro-73030-default-rtdb.firebaseio.com",
     "project_id": "agritrackpro-73030",
     "storage_bucket": "agritrackpro-73030.firebasestorage.app"
   },
@@ -12,7 +13,20 @@
           "package_name": "com.example.agritrackpro"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "830728446252-kfav4d5opd0uaa34co27f9qj60p76fbv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.agritrackpro",
+            "certificate_hash": "0c75dbfc566afc5cf36be057ff12f0d60a71d2d4"
+          }
+        },
+        {
+          "client_id": "830728446252-c4rffghtrb1jhtj7c0gik40ic36elrba.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBf4HGnZGtYCuxajMoYLtZMv2Gx02YXx-4"
@@ -20,7 +34,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "830728446252-c4rffghtrb1jhtj7c0gik40ic36elrba.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "830728446252-ogjgs13p686heppmearcfmq5r920v03m.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.agritrackpro"
+              }
+            }
+          ]
         }
       }
     }

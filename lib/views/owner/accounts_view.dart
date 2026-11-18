@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import '../services/store_repository.dart';
+import '../../services/store_repository.dart';
 
 class AccountsView extends StatefulWidget {
   const AccountsView({super.key, required this.repo});
@@ -78,6 +78,9 @@ class _AccountsViewState extends State<AccountsView> {
                   .contains(search.toLowerCase()))
               .toList()
             ..sort((a, b) {
+              final aCustomer = a.data()['role'] == 'customer';
+              final bCustomer = b.data()['role'] == 'customer';
+              if (aCustomer != bCustomer) return aCustomer ? -1 : 1;
               final byAccess = (a.data()['active'] == true ? 1 : 0)
                   .compareTo(b.data()['active'] == true ? 1 : 0);
               return byAccess != 0
@@ -100,10 +103,26 @@ class _AccountsViewState extends State<AccountsView> {
             if (docs.isEmpty)
               const Text(
                   'No accounts found. New users appear after signing in to the app.'),
-            for (final doc in docs)
+            for (var index = 0; index < docs.length; index++) ...[
+              if (index == 0 ||
+                  (docs[index - 1].data()['role'] == 'customer') !=
+                      (docs[index].data()['role'] == 'customer'))
+                Padding(
+                    padding: const EdgeInsets.only(top: 16, bottom: 4),
+                    child: Text(
+                      docs[index].data()['role'] == 'customer'
+                          ? 'Customer accounts'
+                          : 'Staff accounts',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    )),
               Builder(builder: (context) {
+                final doc = docs[index];
                 final data = doc.data();
-                final email = data['email'] as String? ?? '';
+                final email =
+                    (data['email'] ?? data['gmail'] ?? data['authEmail'])
+                            ?.toString()
+                            .trim() ??
+                        '';
                 final active = data['active'] == true;
                 final self = doc.id == widget.repo.uid;
                 final working = pending.contains(doc.id);
@@ -113,9 +132,12 @@ class _AccountsViewState extends State<AccountsView> {
                         child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(email.isEmpty ? 'Email unavailable' : email,
-                                  style:
-                                      Theme.of(context).textTheme.titleMedium),
+                              SelectableText(
+                                email.isEmpty
+                                    ? 'Email unavailable'
+                                    : 'Email: $email',
+                                style: Theme.of(context).textTheme.titleMedium,
+                              ),
                               Text(
                                   '${data['role'] ?? 'staff'} • ${active ? 'Access enabled' : 'Pending / disabled'}${self ? ' • You' : ''}'),
                               SelectableText('Account ID: ${doc.id}'),
@@ -147,9 +169,7 @@ class _AccountsViewState extends State<AccountsView> {
                                         value: 'customer',
                                         child: Text('Customer catalog')),
                                     DropdownMenuItem(
-                                        value: 'staff',
-                                        child:
-                                            Text('Staff (checkout and stock)')),
+                                        value: 'staff', child: Text('Staff')),
                                   ],
                                   onChanged: working
                                       ? null
@@ -163,6 +183,23 @@ class _AccountsViewState extends State<AccountsView> {
                                                 'Workspace updated.');
                                           }
                                         },
+                                ),
+                              if (!self && data['role'] == 'staff')
+                                SwitchListTile.adaptive(
+                                  contentPadding: EdgeInsets.zero,
+                                  title: const Text('Inventory management'),
+                                  subtitle: const Text(
+                                      'Allow product edits and stock adjustments'),
+                                  value: data['inventoryAccess'] == true,
+                                  onChanged: working
+                                      ? null
+                                      : (enabled) => act(
+                                          doc.id,
+                                          () => widget.repo.setInventoryAccess(
+                                              doc.id, enabled),
+                                          enabled
+                                              ? 'Inventory access granted.'
+                                              : 'Inventory access removed.'),
                                 ),
                               Wrap(spacing: 8, children: [
                                 if (!self)
@@ -189,6 +226,7 @@ class _AccountsViewState extends State<AccountsView> {
                               if (working) const LinearProgressIndicator(),
                             ])));
               }),
+            ],
           ]);
         },
       );

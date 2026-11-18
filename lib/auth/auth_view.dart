@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import '../views/customer/guest_catalog_view.dart';
+import '../widgets/app_logo.dart';
+import '../services/store_repository.dart';
+import '../config/theme.dart';
 
 class AuthView extends StatefulWidget {
   const AuthView({super.key, this.auth});
@@ -19,6 +22,10 @@ class _AuthViewState extends State<AuthView> {
   bool registering = false;
   final confirmPassword = TextEditingController();
   static Future<void>? googleInitialization;
+  static const googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+    defaultValue: '',
+  );
   String? signInError;
   String? statusMessage;
   Timer? slowRequestTimer;
@@ -133,7 +140,10 @@ class _AuthViewState extends State<AuthView> {
         await auth.signInWithPopup(GoogleAuthProvider());
       } else {
         try {
-          await (googleInitialization ??= GoogleSignIn.instance.initialize());
+          await (googleInitialization ??= GoogleSignIn.instance.initialize(
+            serverClientId:
+                googleServerClientId.isEmpty ? null : googleServerClientId,
+          ));
         } catch (_) {
           googleInitialization = null;
           rethrow;
@@ -143,15 +153,42 @@ class _AuthViewState extends State<AuthView> {
         if (idToken == null) {
           throw StateError('Google did not return an ID token');
         }
-        await auth.signInWithCredential(
-            GoogleAuthProvider.credential(idToken: idToken));
+        final googleCredential =
+            GoogleAuthProvider.credential(idToken: idToken);
+        try {
+          await auth.signInWithCredential(googleCredential);
+        } on FirebaseAuthException catch (e) {
+          if (e.code != 'account-exists-with-different-credential') rethrow;
+          final address = email.text.trim().toLowerCase();
+          if (address.isEmpty || password.text.isEmpty) {
+            throw FirebaseAuthException(
+              code: 'google-account-link-required',
+              message:
+                  'This Gmail already has an account. Enter that account password, then tap Continue with Google again to link both sign-in methods.',
+            );
+          }
+          final existing = await auth.signInWithEmailAndPassword(
+              email: address, password: password.text);
+          await existing.user!.linkWithCredential(googleCredential);
+        }
+      }
+      // Provision the Firestore profile before the shell opens. New Google
+      // accounts are created as active customers immediately.
+      try {
+        await StoreRepository().watchProfile().first;
+      } catch (error) {
+        debugPrint('Google customer profile provisioning failed: $error');
       }
     } on GoogleSignInException catch (e) {
       if (mounted) {
-        setState(() => signInError = e.code ==
-                GoogleSignInExceptionCode.canceled
-            ? 'Google sign-in was canceled. You can try again.'
-            : 'Google sign-in is unavailable. Contact the administrator to check Google sign-in setup.');
+        setState(() => signInError = switch (e.code) {
+              GoogleSignInExceptionCode.canceled =>
+                'Google sign-in was canceled. You can try again.',
+              GoogleSignInExceptionCode.clientConfigurationError =>
+                'Google sign-in is not configured for this Android app. Add the Android SHA-1 and OAuth client in Firebase, then download google-services.json again.',
+              _ =>
+                'Google sign-in is unavailable. Check the Firebase Google provider and Android OAuth configuration.',
+            });
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) {
@@ -165,6 +202,12 @@ class _AuthViewState extends State<AuthView> {
                 'Check your internet connection and try again.',
               'user-disabled' =>
                 'This account is disabled. Contact the administrator.',
+              'google-account-link-required' => e.message ??
+                  'Enter the existing account password, then try Google sign-in again to link both methods.',
+              'credential-already-in-use' =>
+                'This Google account is already linked to another Firebase account.',
+              'provider-already-linked' =>
+                'Google sign-in is already linked to this account.',
               _ =>
                 'Unable to sign in with Google. Contact the administrator if this continues.',
             });
@@ -222,31 +265,66 @@ class _AuthViewState extends State<AuthView> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
           child: Center(
               child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.fromLTRB(24, 22, 24, 30),
                   child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 420),
                       child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.energy_savings_leaf_rounded,
-                                size: 76, color: Color(0xFF166534)),
-                            const SizedBox(height: 12),
-                            Text('AgriTrack Pro',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineMedium
-                                    ?.copyWith(fontWeight: FontWeight.bold)),
-                            const Text('Agri Supply • Store Management'),
-                            const SizedBox(height: 36),
-                            if (registering) ...[
-                              Text('Create account',
-                                  style:
-                                      Theme.of(context).textTheme.titleLarge),
-                              const SizedBox(height: 16),
-                            ],
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 28, horizontal: 20),
+                              decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(28),
+                                  gradient: const LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [
+                                        Color(0xFFF0F9EC),
+                                        Color(0xFFD8EFDA)
+                                      ])),
+                              child: Column(children: [
+                                const AppLogo(size: 90),
+                                const SizedBox(height: 10),
+                                const Text('AgriTrack Pro',
+                                    style: TextStyle(
+                                        fontSize: 29,
+                                        fontWeight: FontWeight.w900,
+                                        color: AgriTheme.darkGreen)),
+                                const SizedBox(height: 3),
+                                const Text('Agri Supply Management System',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        fontSize: 14, color: AgriTheme.ink)),
+                                const SizedBox(height: 5),
+                                const Text(
+                                    'Sales  •  Inventory  •  Payments  •  Profit',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF56735D))),
+                              ]),
+                            ),
+                            const SizedBox(height: 28),
+                            Text(
+                                registering ? 'Create account' : 'Welcome back',
+                                style: const TextStyle(
+                                    fontSize: 27,
+                                    fontWeight: FontWeight.w800,
+                                    color: AgriTheme.darkGreen)),
+                            const SizedBox(height: 4),
+                            Text(
+                                registering
+                                    ? 'Join your AgriTrack Pro store'
+                                    : 'Sign in to your AgriTrack Pro account',
+                                style:
+                                    const TextStyle(color: Color(0xFF637269))),
+                            const SizedBox(height: 24),
                             TextField(
                                 controller: email,
                                 enabled: !busy,
@@ -256,7 +334,8 @@ class _AuthViewState extends State<AuthView> {
                                 autofillHints: const [AutofillHints.username],
                                 keyboardType: TextInputType.emailAddress,
                                 decoration: InputDecoration(
-                                    labelText: 'Staff email',
+                                    labelText: 'Email address',
+                                    prefixIcon: const Icon(Icons.mail_outline),
                                     helperText: email.text
                                             .trim()
                                             .toLowerCase()
@@ -277,6 +356,7 @@ class _AuthViewState extends State<AuthView> {
                                 obscureText: hidePassword,
                                 decoration: InputDecoration(
                                     labelText: 'Password',
+                                    prefixIcon: const Icon(Icons.lock_outline),
                                     suffixIcon: IconButton(
                                       tooltip: hidePassword
                                           ? 'Show password'
@@ -331,12 +411,27 @@ class _AuthViewState extends State<AuthView> {
                                         ? 'Please wait…'
                                         : registering
                                             ? 'Create account'
-                                            : 'Sign in'))),
-                            const SizedBox(height: 12),
+                                            : 'Log in'))),
+                            const SizedBox(height: 4),
                             if (!registering)
-                              TextButton(
-                                  onPressed: busy ? null : resetPassword,
-                                  child: const Text('Forgot password?')),
+                              Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                      onPressed: busy ? null : resetPassword,
+                                      child: const Text('Forgot password?'))),
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Row(children: [
+                                Expanded(child: Divider()),
+                                Padding(
+                                    padding:
+                                        EdgeInsets.symmetric(horizontal: 14),
+                                    child: Text('or',
+                                        style:
+                                            TextStyle(color: Colors.black54))),
+                                Expanded(child: Divider()),
+                              ]),
+                            ),
                             if (kIsWeb ||
                                 defaultTargetPlatform ==
                                     TargetPlatform.android ||

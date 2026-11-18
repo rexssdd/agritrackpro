@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../widgets/confirm_dialog.dart';
 import '../services/store_repository.dart';
 import '../models/store_role.dart';
 import 'role_workspace.dart';
-import 'owner_console.dart';
+import 'owner/owner_console.dart';
 
 class ShellView extends StatefulWidget {
   const ShellView({super.key});
@@ -39,7 +40,11 @@ class _ShellViewState extends State<ShellView> {
                         setState(() => profileStream = repo.watchProfile()),
                     child: const Text('Retry')),
                 TextButton(
-                    onPressed: () => FirebaseAuth.instance.signOut(),
+                    onPressed: () async {
+                      if (await confirmLogout(context)) {
+                        await FirebaseAuth.instance.signOut();
+                      }
+                    },
                     child: const Text('Sign out')),
               ])));
         }
@@ -61,7 +66,11 @@ class _ShellViewState extends State<ShellView> {
                 SelectableText(
                     'Account ID: ${FirebaseAuth.instance.currentUser!.uid}'),
                 TextButton(
-                    onPressed: () => FirebaseAuth.instance.signOut(),
+                    onPressed: () async {
+                      if (await confirmLogout(context)) {
+                        await FirebaseAuth.instance.signOut();
+                      }
+                    },
                     child: const Text('Sign out'))
               ])));
         }
@@ -71,6 +80,10 @@ class _ShellViewState extends State<ShellView> {
           return OwnerConsole(key: ValueKey('owner-${repo.uid}'), repo: repo);
         }
         return RoleWorkspace(
-            key: ValueKey('${role.name}-${repo.uid}'), repo: repo, role: role);
+            key:
+                ValueKey('${role.name}-${repo.uid}-${data['inventoryAccess']}'),
+            repo: repo,
+            role: role,
+            inventoryAccess: data['inventoryAccess'] == true);
       });
 }

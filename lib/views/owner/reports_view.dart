@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import '../models/entities.dart';
-import '../services/store_repository.dart';
-import '../widgets/common.dart';
+import '../../models/entities.dart';
+import '../../services/store_repository.dart';
+import '../../widgets/common.dart';
 
 class ReportsView extends StatefulWidget {
   final StoreRepository repo;
-  const ReportsView({super.key, required this.repo});
+  final VoidCallback? onProductPerformance;
+  const ReportsView({super.key, required this.repo, this.onProductPerformance});
   @override
   State<ReportsView> createState() => _ReportsViewState();
 }
@@ -68,6 +69,15 @@ class _ReportsViewState extends State<ReportsView> {
                       .textTheme
                       .headlineSmall
                       ?.copyWith(fontWeight: FontWeight.bold)),
+              if (widget.onProductPerformance != null)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: widget.onProductPerformance,
+                    icon: const Icon(Icons.stacked_bar_chart_outlined),
+                    label: const Text('Product performance'),
+                  ),
+                ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                   initialValue: period,

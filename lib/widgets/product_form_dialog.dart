@@ -139,24 +139,57 @@ class _ProductFormDialogState extends State<ProductFormDialog> {
   Future<void> save() async {
     if (saving || picking || !form.currentState!.validate()) return;
     FocusManager.instance.primaryFocus?.unfocus();
+    final draft = Product(
+      id: widget.product?.id ?? '',
+      name: name.text.trim(),
+      category: classification.text.trim(),
+      description: description.text.trim(),
+      imageBase64: imageBase64,
+      unit: unit.text.trim(),
+      price: double.parse(price.text.trim()),
+      cost: widget.canEditCost ? double.parse(cost.text.trim()) : 0,
+      stock: widget.product?.stock ?? int.parse(quantity.text.trim()),
+      reorderLevel: int.parse(reorder.text.trim()),
+      active: widget.product?.active ?? true,
+    );
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(widget.product == null
+            ? 'Preview new product'
+            : 'Preview product changes'),
+        content: SingleChildScrollView(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          ProductImagePlaceholder(imageBase64: draft.imageBase64, size: 140),
+          const SizedBox(height: 12),
+          Text(draft.name, style: Theme.of(context).textTheme.titleLarge),
+          Text('Category: ${draft.category}'),
+          Text(
+              'Description: ${draft.description.isEmpty ? 'None' : draft.description}'),
+          Text('Selling price: ₱${draft.price.toStringAsFixed(2)}'),
+          if (widget.canEditCost)
+            Text('Purchase cost: ₱${draft.cost.toStringAsFixed(2)}'),
+          Text('Stock: ${draft.stock} ${draft.unit}'),
+          Text('Reorder level: ${draft.reorderLevel}'),
+        ])),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Back to edit')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Confirm and save')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
     setState(() {
       saving = true;
       error = null;
     });
     try {
-      await widget.repo.saveProduct(Product(
-        id: widget.product?.id ?? '',
-        name: name.text.trim(),
-        category: classification.text.trim(),
-        description: description.text.trim(),
-        imageBase64: imageBase64,
-        unit: unit.text.trim(),
-        price: double.parse(price.text.trim()),
-        cost: widget.canEditCost ? double.parse(cost.text.trim()) : 0,
-        stock: widget.product?.stock ?? int.parse(quantity.text.trim()),
-        reorderLevel: int.parse(reorder.text.trim()),
-        active: widget.product?.active ?? true,
-      ));
+      await widget.repo.saveProduct(draft);
       if (mounted) Navigator.pop(context);
     } catch (_) {
       if (mounted) {

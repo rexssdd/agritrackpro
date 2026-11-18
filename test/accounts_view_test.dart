@@ -1,5 +1,5 @@
 import 'package:agritrack_pro/services/store_repository.dart';
-import 'package:agritrack_pro/views/accounts_view.dart';
+import 'package:agritrack_pro/views/owner/accounts_view.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

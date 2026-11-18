@@ -54,4 +54,8 @@ function saleLines(lines, products) {
   });
   return {items, total: totalCents / 100, cost: costCents / 100};
 }
-module.exports = {requireValue, money, text, id, quantity, product, catalog, saleLines};
+function image(value) {
+  requireValue(typeof value === 'string' && value.length <= 163840 && /^[A-Za-z0-9+/=]*$/.test(value), 'Invalid image');
+  return value;
+}
+module.exports = {requireValue, money, text, id, quantity, product, catalog, saleLines, image};

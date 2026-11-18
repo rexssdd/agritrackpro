@@ -11,36 +11,60 @@ service cloud.firestore {
       allow create: if signedIn() && request.auth.uid == id
         && request.resource.data.keys().hasOnly(['email','role','active','createdAt'])
         && request.resource.data.email == request.auth.token.email
-        && request.resource.data.role == 'staff' && request.resource.data.active == false
+        && ((request.resource.data.role == 'staff' && request.resource.data.active == false)
+          || (request.auth.token.firebase.sign_in_provider == 'google.com'
+            && request.resource.data.role == 'customer' && request.resource.data.active == true))
         && request.resource.data.createdAt == request.time;
       allow update: if (owner() && request.auth.uid != id
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active','role','updatedAt'])
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['active','role','inventoryAccess','updatedAt'])
           && request.resource.data.active is bool
+          && (!request.resource.data.keys().hasAny(['inventoryAccess'])
+            || request.resource.data.inventoryAccess is bool)
           && (request.resource.data.role == resource.data.role
             || request.resource.data.role in ['cashier','inventory','customer','staff'])
           && request.resource.data.updatedAt == request.time)
         || (signedIn() && request.auth.uid == id
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email'])
-          && request.resource.data.email == request.auth.token.email);
+          && request.resource.data.email == request.auth.token.email)
+        || (signedIn() && request.auth.uid == id
+          && request.auth.token.firebase.sign_in_provider == 'google.com'
+          && resource.data.role != 'owner'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email','role','active','updatedAt'])
+          && request.resource.data.email == request.auth.token.email
+          && request.resource.data.role == 'customer'
+          && request.resource.data.active == true
+          && request.resource.data.updatedAt == request.time);
       allow delete: if false;
     }
     // All business mutations run through authenticated callable functions.
-    match /products/{id} { allow read: if owner(); allow write: if false; }
-    match /sales/{id} { allow read: if owner(); allow write: if false; }
+    match /products/{id} {
+      allow read: if owner();
+      allow write: if false;
+    }
+    match /sales/{id} {
+      allow read: if roleIn(['owner','cashier','staff']);
+      allow write: if false;
+    }
     match /catalog/{id} {
       allow read: if !signedIn() || roleIn(['owner','cashier','inventory','customer','staff']);
       allow write: if false;
     }
     match /customer_orders/{id} {
-      allow read: if roleIn(['owner']) || (roleIn(['customer']) && resource.data.customerId == request.auth.uid);
+      allow read: if roleIn(['owner','cashier','staff']) || (roleIn(['customer']) && resource.data.customerId == request.auth.uid);
+      allow write: if false;
+    }
+    match /store_settings/{id} {
+      allow get: if roleIn(['owner','cashier','customer']);
+      allow list: if false;
       allow write: if false;
     }
     match /receipts/{id} {
-      allow read: if owner() || (roleIn(['cashier','staff']) && resource.data.cashierId == request.auth.uid);
+      allow read: if owner() || (roleIn(['cashier','staff']) && resource.data.cashierId == request.auth.uid)
+        || (roleIn(['customer']) && resource.data.customerId == request.auth.uid);
       allow write: if false;
     }
     match /expenses/{id} { allow read: if roleIn(['owner','inventory']); allow write: if false; }
-    match /stock_movements/{id} { allow read: if roleIn(['owner','inventory','staff']); allow write: if false; }
+    match /stock_movements/{id} { allow read: if roleIn(['owner','inventory']) || (roleIn(['staff']) && profile().get('inventoryAccess', false) == true); allow write: if false; }
     match /operations/{id} { allow read, write: if false; }
   }
 }

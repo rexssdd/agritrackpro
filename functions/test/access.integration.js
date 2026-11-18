@@ -52,6 +52,18 @@ test('roles cannot read costs, write stock directly, or escalate themselves', as
   }
   await assertFails(getDoc(doc(client('disabled'), 'catalog', 'rice')));
 });
+test('owner controls staff inventory access', async () => {
+  const product = {name:'Staff test',category:'Seeds',unit:'bag',price:100,cost:0,stock:0,reorderLevel:2,active:true};
+  await assert.rejects(call('staff','saveProduct',{id:'staff-product',product}));
+  await assertFails(getDocs(collection(client('staff'),'stock_movements')));
+  await assertSucceeds(updateDoc(doc(client('owner'),'users',users.staff.uid),
+    {inventoryAccess:true,updatedAt:serverTimestamp()}));
+  await call('staff','saveProduct',{id:'staff-product',product});
+  await assertSucceeds(getDocs(collection(client('staff'),'stock_movements')));
+  await assertSucceeds(updateDoc(doc(client('owner'),'users',users.staff.uid),
+    {inventoryAccess:false,updatedAt:serverTimestamp()}));
+  await assert.rejects(call('staff','adjustStock',{id:'rice',delta:1,reason:'Revoked'}));
+});
 test('owner assigns a workspace, non-owner cannot', async () => {
   const fields = {role: 'inventory', updatedAt: serverTimestamp()};
   await assertSucceeds(updateDoc(doc(client('owner'), 'users', users.staff.uid), fields));
@@ -108,6 +120,18 @@ test('concurrent checkouts cannot sell the same final unit twice', async () => {
   const results = await Promise.allSettled([call('cashier','checkout',payload),call('cashier','checkout',payload)]);
   assert.equal(results.filter(result => result.status === 'fulfilled').length,1);
   assert.equal((await getDoc(doc(client('owner'),'products','last-unit'))).data().stock,0);
+});
+
+test('a customer payment reference does not confirm an order', async () => {
+  const created = await call('customer','createOrder',{
+    items:[{productId:'rice',quantity:1}], deliveryMode:'Pickup',
+    paymentMethod:'GCash', paymentReference:'UNVERIFIED-123'
+  });
+  const orderId = created.data.id;
+  await assert.rejects(call('cashier','confirmOrder',{orderId}));
+  assert.equal((await getDoc(doc(client('customer'),'customer_orders',orderId))).data().status,'pending');
+  await call('cashier','confirmOrder',{orderId,paymentVerified:true});
+  assert.equal((await getDoc(doc(client('customer'),'customer_orders',orderId))).data().status,'confirmed');
 });
 
 test('seeding is repeatable and backfill does not publish costs', async () => {

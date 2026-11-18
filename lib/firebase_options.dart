@@ -46,6 +46,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '830728446252',
     projectId: 'agritrackpro-73030',
     authDomain: 'agritrackpro-73030.firebaseapp.com',
+    databaseURL: 'https://agritrackpro-73030-default-rtdb.firebaseio.com',
     storageBucket: 'agritrackpro-73030.firebasestorage.app',
     measurementId: 'G-HDXC7VVE8M',
   );
@@ -55,24 +56,29 @@ class DefaultFirebaseOptions {
     appId: '1:830728446252:android:45301eece0bc05ea7c8c89',
     messagingSenderId: '830728446252',
     projectId: 'agritrackpro-73030',
+    databaseURL: 'https://agritrackpro-73030-default-rtdb.firebaseio.com',
     storageBucket: 'agritrackpro-73030.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDCee3RkRoq1L5-oRfj8felgHdGqBgLUWU',
     appId: '1:830728446252:ios:486d39bf95c3643b7c8c89',
     messagingSenderId: '830728446252',
     projectId: 'agritrackpro-73030',
+    databaseURL: 'https://agritrackpro-73030-default-rtdb.firebaseio.com',
     storageBucket: 'agritrackpro-73030.firebasestorage.app',
+    androidClientId: '830728446252-kfav4d5opd0uaa34co27f9qj60p76fbv.apps.googleusercontent.com',
+    iosClientId: '830728446252-ogjgs13p686heppmearcfmq5r920v03m.apps.googleusercontent.com',
     iosBundleId: 'com.example.agritrackpro',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyDCee3RkRoq1L5-oRfj8felgHdGqBgLUWU',
     appId: '1:830728446252:ios:486d39bf95c3643b7c8c89',
     messagingSenderId: '830728446252',
     projectId: 'agritrackpro-73030',
+    databaseURL: 'https://agritrackpro-73030-default-rtdb.firebaseio.com',
     storageBucket: 'agritrackpro-73030.firebasestorage.app',
+    androidClientId: '830728446252-kfav4d5opd0uaa34co27f9qj60p76fbv.apps.googleusercontent.com',
+    iosClientId: '830728446252-ogjgs13p686heppmearcfmq5r920v03m.apps.googleusercontent.com',
     iosBundleId: 'com.example.agritrackpro',
   );
 
@@ -82,6 +88,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '830728446252',
     projectId: 'agritrackpro-73030',
     authDomain: 'agritrackpro-73030.firebaseapp.com',
+    databaseURL: 'https://agritrackpro-73030-default-rtdb.firebaseio.com',
     storageBucket: 'agritrackpro-73030.firebasestorage.app',
     measurementId: 'G-GJB95QGGVW',
   );

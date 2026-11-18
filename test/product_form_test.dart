@@ -38,10 +38,14 @@ void main() {
     repo.fail = true;
     await tester.tap(find.text('Save product'));
     await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm and save'));
+    await tester.pumpAndSettle();
     expect(find.textContaining('Unable to save.'), findsOneWidget);
     expect(find.widgetWithText(TextFormField, 'Organic fertilizer'), findsOneWidget);
     repo.fail = false;
     await tester.tap(find.text('Save product'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirm and save'));
     await tester.pumpAndSettle();
     expect(repo.saved!.description, 'For vegetables');
     expect(repo.saved!.category, 'Fertilizer');

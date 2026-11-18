@@ -4,6 +4,9 @@ import '../models/entities.dart';
 import '../services/store_repository.dart';
 import '../widgets/common.dart';
 import 'cashier/receipts_view.dart';
+import '../widgets/agri_ui.dart';
+import '../widgets/product_image_placeholder.dart';
+import '../config/theme.dart';
 
 class SalesView extends StatefulWidget {
   final StoreRepository repo;
@@ -102,11 +105,11 @@ class _SalesViewState extends State<SalesView> {
               child: AbsorbPointer(
                   absorbing: saving || requestId != null,
                   child: ListView(padding: const EdgeInsets.all(16), children: [
-                    Text('New sale',
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold)),
+                    const AgriHero(
+                        title: 'New sale',
+                        subtitle: 'Search, add products, and check out',
+                        icon: Icons.point_of_sale_outlined,
+                        compact: true),
                     const SizedBox(height: 12),
                     TextField(
                         decoration: const InputDecoration(
@@ -114,14 +117,19 @@ class _SalesViewState extends State<SalesView> {
                             hintText: 'Find a product'),
                         onChanged: (v) => setState(() => search = v)),
                     const SizedBox(height: 10),
+                    const AgriSectionTitle('Available products'),
                     ...available.map((p) => Card(
                         child: ListTile(
-                            title: Text(p.name),
+                            leading: ProductImagePlaceholder(
+                                size: 48, imageBase64: p.imageBase64),
+                            title: Text(p.name,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700)),
                             subtitle: Text(
                                 '${peso(p.price)} • ${p.stock} ${p.unit} available'),
                             trailing: IconButton(
                                 icon: const Icon(Icons.add_circle,
-                                    color: Color(0xFF166534)),
+                                    color: AgriTheme.green),
                                 onPressed: () {
                                   setState(() {
                                     final l = cart[p.id];
@@ -133,7 +141,7 @@ class _SalesViewState extends State<SalesView> {
                                   });
                                 })))),
                     const SizedBox(height: 16),
-                    Text('Cart', style: Theme.of(context).textTheme.titleLarge),
+                    const AgriSectionTitle('Cart'),
                     if (cart.isEmpty)
                       const Card(
                           child:
@@ -167,11 +175,22 @@ class _SalesViewState extends State<SalesView> {
                                           const Icon(Icons.add_circle_outline))
                                 ])))),
                     const SizedBox(height: 10),
-                    Text('Total: ${peso(previewTotal)}',
-                        style: Theme.of(context)
-                            .textTheme
-                            .headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold)),
+                    Card(
+                        color: AgriTheme.darkGreen,
+                        child: Padding(
+                            padding: const EdgeInsets.all(18),
+                            child: Row(children: [
+                              const Expanded(
+                                  child: Text('Total due',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700))),
+                              Text(peso(previewTotal),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800)),
+                            ]))),
                     const SizedBox(height: 12),
                     TextField(
                         controller: customer,
@@ -214,8 +233,7 @@ class _SalesViewState extends State<SalesView> {
                             ? 'Saving transaction…'
                             : 'Confirm payment & deduct stock')),
                     const SizedBox(height: 24),
-                    Text('Recent payments',
-                        style: Theme.of(context).textTheme.titleLarge),
+                    const AgriSectionTitle('Recent payments'),
                     StreamBuilder<List<Sale>>(
                         stream: widget.repo.watchReceipts(),
                         builder: (context, ss) {

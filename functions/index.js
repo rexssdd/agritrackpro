@@ -20,21 +20,62 @@ exports.storeOperation = onCall({region: 'us-central1', timeoutSeconds: 120}, as
     return await db.runTransaction(async tx => {
       const profile = await tx.get(db.collection('users').doc(uid));
       const role = profile.data()?.role;
+      const inventoryAccess = role === 'staff' && profile.data()?.inventoryAccess === true;
       if (profile.data()?.active !== true) throw new HttpsError('permission-denied', 'Account is not active.');
       const allowed = {
         checkout: ['owner', 'cashier', 'staff'],
         saveProduct: ['owner', 'inventory'],
-        adjustStock: ['owner', 'inventory', 'staff'],
+        adjustStock: ['owner', 'inventory'],
         addExpense: ['owner', 'inventory'],
         seed: ['owner'],
         publish: ['owner'],
       createOrder: ['customer'],
+      saveGcashQr: ['owner'],
+      confirmOrder: ['owner', 'cashier', 'staff'],
       };
-      if (!can(role, allowed[input.action] ?? [])) throw new HttpsError('permission-denied', 'Your role cannot perform this action.');
+      if (!can(role, allowed[input.action] ?? []) &&
+          !(inventoryAccess && ['saveProduct', 'adjustStock'].includes(input.action))) {
+        throw new HttpsError('permission-denied', 'Your role cannot perform this action.');
+      }
       const prior = await tx.get(operationRef);
       if (prior.exists) return prior.data().result;
       let result = {};
-      if (input.action === 'createOrder') {
+      if (input.action === 'saveGcashQr') {
+        const imageBase64 = v.image(input.imageBase64 ?? '');
+        tx.set(db.collection('store_settings').doc('gcash'), {
+          imageBase64, updatedAt: now(), updatedBy: uid
+        });
+        result = {saved: true};
+      } else if (input.action === 'confirmOrder') {
+        v.requireValue(input.paymentVerified === true,
+            'Confirm payment receipt before completing an order');
+        const orderId = v.id(input.orderId);
+        const orderRef = db.collection('customer_orders').doc(orderId);
+        const orderDoc = await tx.get(orderRef);
+        const order = orderDoc.data();
+        v.requireValue(orderDoc.exists && order.status === 'pending', 'Order is no longer pending');
+        const lines = order.items.map(item => ({productId: v.id(item.productId), quantity: item.quantity}));
+        const refs = lines.map(l => db.collection('products').doc(l.productId));
+        const docs = await tx.getAll(...refs);
+        const sale = v.saleLines(lines, docs.map(d => d.data()));
+        if (order.paymentMethod === 'GCash') v.requireValue(v.text(order.paymentReference ?? '', 100).length > 0, 'GCash payment reference is required');
+        const saleId = `${orderId}_sale`;
+        const record = {...sale, amountPaid: sale.total, change: 0, method: order.paymentMethod,
+          paymentReference: order.paymentReference ?? '', paymentVerified: true,
+          customer: order.customerId, customerId: order.customerId, cashierId: uid, createdAt: now()};
+        tx.create(db.collection('sales').doc(saleId), record);
+        const {cost, items, ...receipt} = record;
+        tx.create(db.collection('receipts').doc(saleId), {...receipt, items: items.map(({unitCost, ...item}) => item)});
+        docs.forEach((doc, i) => {
+          const stock = doc.data().stock - lines[i].quantity;
+          tx.update(refs[i], {stock, updatedAt: now()});
+          tx.set(db.collection('catalog').doc(doc.id), v.catalog({...doc.data(), stock, updatedAt: now()}));
+          tx.create(db.collection('stock_movements').doc(), {productId: doc.id, productName: doc.data().name,
+            delta: -lines[i].quantity, before: doc.data().stock, after: stock, reason: 'Customer preorder', saleId, userId: uid, createdAt: now()});
+        });
+        tx.update(orderRef, {status: 'confirmed', saleId, confirmedBy: uid, confirmedAt: now(), updatedAt: now()});
+        result = {id: saleId};
+      } else if (input.action === 'createOrder') {
         const lines = input.items;
         v.requireValue(Array.isArray(lines) && lines.length > 0 && lines.length <= 100, 'Invalid cart');
         const refs = lines.map(l => db.collection('products').doc(v.id(l.productId)));
@@ -48,7 +89,7 @@ exports.storeOperation = onCall({region: 'us-central1', timeoutSeconds: 120}, as
         v.requireValue(paymentMethod === 'Cash' || paymentReference.length > 0, 'Enter the GCash reference');
         const orderId = `${uid}_${requestId}`;
         tx.create(db.collection('customer_orders').doc(orderId), {
-          customerId: uid, items: order.items.map(({unitCost, ...item}) => item), total: order.total,
+          customerId: uid, customerEmail: v.text(input.customerEmail ?? '', 160), address: v.text(input.address ?? '', 500), items: order.items.map(({unitCost, ...item}) => item), total: order.total,
           deliveryMode, paymentMethod, paymentReference, status: 'pending', createdAt: now(), updatedAt: now()
         });
         result = {id: orderId};

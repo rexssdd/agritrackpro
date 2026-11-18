@@ -12,6 +12,22 @@ A Flutter source project for an agricultural supply store: email/password staff 
 7. In Firebase Authentication, manually create an owner account (email/password). Copy its UID and create `users/{uid}` in Firestore with fields `role: "owner"` and `active: true`. For staff, create their Auth user and `users/{uid}` with `role: "staff"` and `active: true`. Never expose a self-service role assignment in the client.
 8. Run `flutter run` on a connected Android/iOS device or emulator.
 
+## Role-based workspaces
+
+Owner, staff, cashier, inventory, and customer screens share the AgriTrack Pro
+green-and-white theme. Staff have a daily-operations home and can view stock.
+Owners can grant individual staff members **Inventory management** in Accounts;
+this enables product edits, restocking, and stock movement history. Staff without
+the grant can only view inventory. The owner and dedicated inventory role retain
+their inventory permissions. Sales, stock adjustments, orders, and product changes
+use the `storeOperation` callable function, while Firestore rules deny direct
+business writes. Deploy the callable function and rules together before using
+this client build:
+
+```powershell
+firebase.cmd deploy --only functions,firestore:rules --project agritrackpro-73030
+```
+
 ## Registration and Google sign-in
 
 The authentication screen supports email/password registration and Google sign-in.
@@ -89,5 +105,5 @@ The seeder uses stable demo- document IDs and a single transaction. Repeated run
 
 ## Role workspaces and backend deployment
 
-See [functions/README.md](functions/README.md) for deployment, existing-store catalog/receipt migration, role assignment, permissions and emulator checks. Customers browse with an approved account; ordering remains outside the initial scope.
+See [functions/README.md](functions/README.md) for deployment, existing-store catalog/receipt migration, role assignment, permissions and emulator checks. Guests can browse the public safe catalog; approved customer accounts can submit pickup or cash-on-delivery preorders with cash or GCash selected as the payment method.
 

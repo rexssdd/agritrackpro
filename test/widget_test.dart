@@ -38,7 +38,7 @@ class TestCredential extends Fake implements UserCredential {}
 
 Future<void> enterCredentials(WidgetTester tester) async {
   await tester.enterText(
-      find.widgetWithText(TextField, 'Staff email'), '  Staff@Example.com  ');
+      find.widgetWithText(TextField, 'Email address'), '  Staff@Example.com  ');
   await tester.enterText(
       find.widgetWithText(TextField, 'Password'), 'password123');
 }
@@ -56,7 +56,7 @@ void main() {
     final auth = TestAuth();
     await tester.pumpWidget(MaterialApp(home: AuthView(auth: auth)));
     await enterCredentials(tester);
-    await submit(tester, 'Sign in');
+    await submit(tester, 'Log in');
     expect(auth.submittedEmail, 'staff@example.com');
     expect(find.textContaining('Incorrect email or password.'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
@@ -67,6 +67,7 @@ void main() {
       (tester) async {
     final auth = TestAuth()..error = 'email-already-in-use';
     await tester.pumpWidget(MaterialApp(home: AuthView(auth: auth)));
+    await tester.ensureVisible(find.text('Create an account'));
     await tester.tap(find.text('Create an account'));
     await tester.pump();
     await enterCredentials(tester);
@@ -88,7 +89,7 @@ void main() {
     final auth = TestAuth()..pending = Completer<UserCredential>();
     await tester.pumpWidget(MaterialApp(home: AuthView(auth: auth)));
     await enterCredentials(tester);
-    await submit(tester, 'Sign in');
+    await submit(tester, 'Log in');
     await tester.pump(const Duration(seconds: 21));
     expect(
         find.textContaining('Your request is still pending'), findsOneWidget);
@@ -119,10 +120,11 @@ void main() {
   testWidgets('Registration validates confirmation and can return to sign in',
       (tester) async {
     await tester.pumpWidget(const MaterialApp(home: AuthView()));
+    await tester.ensureVisible(find.text('Create an account'));
     await tester.tap(find.text('Create an account'));
     await tester.pumpAndSettle();
     await tester.enterText(
-        find.widgetWithText(TextField, 'Staff email'), 'staff@example.com');
+        find.widgetWithText(TextField, 'Email address'), 'staff@example.com');
     await tester.enterText(
         find.widgetWithText(TextField, 'Password'), 'password123');
     await tester.enterText(
@@ -145,12 +147,12 @@ void main() {
     await tester.pumpWidget(const MaterialApp(home: AuthView()));
 
     expect(find.text('AgriTrack Pro'), findsOneWidget);
-    expect(find.widgetWithText(TextField, 'Staff email'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Email address'), findsOneWidget);
     expect(find.widgetWithText(TextField, 'Password'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Sign in'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Log in'), findsOneWidget);
 
     await tester.enterText(
-      find.widgetWithText(TextField, 'Staff email'),
+      find.widgetWithText(TextField, 'Email address'),
       'staff@example.com',
     );
     await tester.enterText(

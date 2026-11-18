@@ -78,3 +78,30 @@ class Expense {
         amount = n(m['amount']).toDouble(),
         createdAt = date(m['createdAt']);
 }
+
+class CustomerOrder {
+  final String id,
+      customerId,
+      customerEmail,
+      address,
+      deliveryMode,
+      paymentMethod,
+      paymentReference,
+      status,
+      saleId;
+  final double total;
+  final DateTime createdAt;
+  final List<dynamic> items;
+  CustomerOrder(this.id, Map<String, dynamic> m)
+      : customerId = m['customerId'] ?? '',
+        customerEmail = m['customerEmail'] ?? '',
+        address = m['address'] ?? '',
+        deliveryMode = m['deliveryMode'] ?? '',
+        paymentMethod = m['paymentMethod'] ?? '',
+        paymentReference = m['paymentReference'] ?? '',
+        status = m['status'] ?? 'pending',
+        saleId = m['saleId'] ?? '',
+        total = n(m['total']).toDouble(),
+        createdAt = date(m['createdAt']),
+        items = m['items'] ?? [];
+}

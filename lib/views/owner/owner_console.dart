@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
-import '../services/store_repository.dart';
-import '../services/demo_seeder.dart';
+import '../../services/store_repository.dart';
+import '../../services/demo_seeder.dart';
 import 'accounts_view.dart';
 import 'dashboard_view.dart';
-import '../expensees/expenses_view.dart';
-import 'inventory_view.dart';
+import '../../expensees/expenses_view.dart';
+import '../inventory_view.dart';
 import 'reports_view.dart';
-import 'sales_view.dart';
-import 'inventory/stock_history_view.dart';
-import 'cashier/receipts_view.dart';
+import 'product_performance_view.dart';
+import '../sales_view.dart';
+import '../inventory/stock_history_view.dart';
+import '../cashier/receipts_view.dart';
+import 'gcash_settings_view.dart';
+import '../../widgets/confirm_dialog.dart';
+import '../../config/theme.dart';
 
 /// Only mounted after the live profile confirms an active owner role.
 class OwnerConsole extends StatefulWidget {
@@ -85,7 +89,9 @@ class _OwnerConsoleState extends State<OwnerConsole> {
     'Reports',
     'Expenses',
     'Stock history',
-    'Receipts'
+    'Receipts',
+    'GCash QR',
+    'Product performance'
   ];
   static const icons = [
     Icons.dashboard_outlined,
@@ -95,17 +101,24 @@ class _OwnerConsoleState extends State<OwnerConsole> {
     Icons.bar_chart,
     Icons.receipt_long_outlined,
     Icons.history,
-    Icons.receipt_long
+    Icons.receipt_long,
+    Icons.qr_code_2,
+    Icons.stacked_bar_chart_outlined
   ];
   late final pages = <Widget>[
-    DashboardView(repo: widget.repo),
+    DashboardView(
+        repo: widget.repo, onOpen: (index) => setState(() => selected = index)),
     InventoryView(repo: widget.repo, isOwner: true),
     SalesView(repo: widget.repo),
     AccountsView(repo: widget.repo),
-    ReportsView(repo: widget.repo),
+    ReportsView(
+        repo: widget.repo,
+        onProductPerformance: () => setState(() => selected = 9)),
     ExpensesView(repo: widget.repo, isOwner: true),
     StockHistoryView(repo: widget.repo),
     ReceiptsView(repo: widget.repo),
+    GcashSettingsView(repo: widget.repo),
+    ProductPerformanceView(repo: widget.repo),
   ];
 
   @override
@@ -113,28 +126,47 @@ class _OwnerConsoleState extends State<OwnerConsole> {
         appBar: AppBar(
           title:
               Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Owner console'),
+            const Text('AgriTrack Pro',
+                style: TextStyle(
+                    fontWeight: FontWeight.w800, color: AgriTheme.darkGreen)),
             Text(labels[selected],
                 style: Theme.of(context).textTheme.labelMedium),
           ]),
           actions: [
-            IconButton(
-                tooltip: publishing
-                    ? 'Publishing...'
-                    : 'Publish existing catalog and receipts',
-                onPressed: publishing ? null : publish,
-                icon: const Icon(Icons.sync)),
-            IconButton(
-                tooltip: seeding ? 'Seeding Firebase...' : 'Seed sample data',
-                onPressed: seeding ? null : seedDemo,
-                icon: const Icon(Icons.cloud_upload_outlined)),
-            IconButton(
-                tooltip: 'Manage accounts',
-                onPressed: () => setState(() => selected = 3),
-                icon: const Icon(Icons.manage_accounts)),
+            PopupMenuButton<String>(
+              tooltip: 'Owner actions',
+              onSelected: (action) {
+                if (action == 'accounts') setState(() => selected = 3);
+                if (action == 'publish') publish();
+                if (action == 'seed') seedDemo();
+              },
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                    value: 'accounts',
+                    child: ListTile(
+                        leading: Icon(Icons.manage_accounts),
+                        title: Text('Manage accounts'))),
+                PopupMenuItem(
+                    value: 'publish',
+                    enabled: !publishing,
+                    child: const ListTile(
+                        leading: Icon(Icons.sync),
+                        title: Text('Publish existing data'))),
+                PopupMenuItem(
+                    value: 'seed',
+                    enabled: !seeding,
+                    child: const ListTile(
+                        leading: Icon(Icons.cloud_upload_outlined),
+                        title: Text('Seed sample data'))),
+              ],
+            ),
             IconButton(
                 tooltip: 'Sign out',
-                onPressed: () => widget.repo.auth.signOut(),
+                onPressed: () async {
+                  if (await confirmLogout(context)) {
+                    await widget.repo.auth.signOut();
+                  }
+                },
                 icon: const Icon(Icons.logout)),
           ],
         ),
